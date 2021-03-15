@@ -25,6 +25,8 @@ import glob
 
 from setupcmd import SetupCmd
 
+services_list = ["haproxy","s3backgroundconsumer","s3backgroundproducer","slapd","s3authserver", "s3server"]
+
 class ResetCmd(SetupCmd):
   """Reset Setup Cmd."""
   name = "reset"
@@ -40,6 +42,14 @@ class ResetCmd(SetupCmd):
     """Main processing function."""
     sys.stdout.write(f"Processing {self.name} {self.url}\n")
     self.phase_prereqs_validate(self.name)
+
+    try:
+      sys.stdout.write("Shutting down s3 services...\n")
+      self.shutdown_s3services(services_list)
+    except Exception as e:
+      sys.stderr.write(f'Failed to stop s3services, error: {e}\n')
+      raise e
+
     try:
       sys.stdout.write('INFO: Cleaning up log files.\n')
       self.CleanupLogs()
@@ -116,5 +126,6 @@ class ResetCmd(SetupCmd):
         except Exception as e:
           sys.stderr.write(f'ERROR: DeleteFileOrDirWithRegex(): Failed to delete: {file}, error: {str(e)}\n')
           raise e
+
 
 

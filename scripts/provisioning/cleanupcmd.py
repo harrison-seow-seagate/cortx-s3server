@@ -68,6 +68,18 @@ class CleanupCmd(SetupCmd):
     """Main processing function."""
     sys.stdout.write(f"Processing {self.name} {self.url}\n")
     self.phase_prereqs_validate(self.name)
+
+    try:
+      sys.stdout.write("checking if ldap service is running or not...\n")
+      self.validate_pre_requisites(rpms=None, pip3s=None, services="slapd", files=None):
+    except S3PROVError as e:
+      sys.stdout.write("Restarting slapd service...\n")
+      self.restart_services("slapd")
+    except Exception as e:
+      sys.stderr.write(f'Failed to validate/restart slapd, error: {e}\n')
+      raise e
+    sys.stdout.write("slapd service is running...\n")
+
     try:
       # Check if reset phase was performed before this
       self.detect_if_reset_done()
@@ -84,8 +96,23 @@ class CleanupCmd(SetupCmd):
       self.revert_config_files()
       sys.stdout.write('INFO: Reverting config files successful.\n')
 
+      try:
+        sys.stdout.write("Stopping slapd service...\n")
+        self.shutdown_s3services("slapd")
+      except Exception as e:
+        sys.stderr.write(f'Failed to stop slapd service, error: {e}\n')
+        raise e
+      sys.stdout.write("Stopped slapd service...\n")
+
       # cleanup ldap config and schemas
       self.delete_ldap_config()
+
+      # delete slapd logs
+      slapd_log="/var/log/slapd.log"
+      if os.path.isfile(slapd_log):
+        os.remove(slapd_log)
+        sys.stdout.write(f"{slapd_log} removed\n")
+
     except Exception as e:
       raise e
 
